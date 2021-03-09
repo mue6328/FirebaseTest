@@ -14,6 +14,11 @@ using Firebase;
 using Firebase.Database;
 using static Android.Widget.AdapterView;
 using System.Net.Sockets;
+using System.Threading;
+using System.IO;
+using Android.Text;
+using Android.Media.Projection;
+using Android.Views;
 
 namespace FirebaseTest11
 {
@@ -29,6 +34,12 @@ namespace FirebaseTest11
         //private EditText userEdit;
         private Button userNext;
         private ListView chatList;
+        private EditText sessionText;
+        private Switch audioSendCheckBox;
+        private Switch audioReceiveCheckBox;
+        private Switch videoSendCheckBox;
+        private Switch videoReceiveCheckBox;
+        private Switch screenShareCheckBox;
         //ArrayAdapter<string> adapter;
 
         private FirebaseDatabase database;
@@ -38,8 +49,13 @@ namespace FirebaseTest11
 
         protected override void OnCreate(Bundle savedInstanceState)
         {
-            
+            App.GenerateCertificate();
+
             base.OnCreate(savedInstanceState);
+            RequestWindowFeature(WindowFeatures.NoTitle);
+            Window.AddFlags(WindowManagerFlags.KeepScreenOn);
+            Window.SetSoftInputMode(SoftInput.StateAlwaysHidden);
+
             SetContentView(Resource.Layout.activity_main);
 
             //FirebaseApp.InitializeApp(this);
@@ -68,45 +84,119 @@ namespace FirebaseTest11
 
             CreateNotificationChannel();
 
-            app = App.GetInstance(this);
-
             userChat = FindViewById<EditText>(Resource.Id.user_chat);
             //userEdit = FindViewById<EditText>(Resource.Id.user_edit);
             userNext = FindViewById<Button>(Resource.Id.user_next);
             chatList = FindViewById<ListView>(Resource.Id.chat_list);
+            sessionText = FindViewById<EditText>(Resource.Id.sessionText);
+            audioSendCheckBox = (Switch)FindViewById(Resource.Id.audioSendSwitch);
+            audioReceiveCheckBox = (Switch)FindViewById(Resource.Id.audioReceiveSwitch);
+            videoSendCheckBox = (Switch)FindViewById(Resource.Id.videoSendSwitch);
+            videoReceiveCheckBox = (Switch)FindViewById(Resource.Id.videoReceiveSwitch);
+            screenShareCheckBox = (Switch)FindViewById(Resource.Id.screenShareSwitch);
 
-
-            var applicationId = "my-app";
-            var userId = "my-name";
-            var deviceId = "00000000-0000-0000-0000-000000000000";
-            var channelId = "11111111-1111-1111-1111-111111111111";
-
-            var client = new FM.LiveSwitch.Client("http://localhost:8080/sync", applicationId, userId, deviceId, null, new[] { "role1", "role2" });
-
-            string ltoken = FM.LiveSwitch.Token.GenerateClientRegisterToken(
-                applicationId,
-                client.UserId,
-                client.DeviceId,
-                client.Id,
-                client.Roles,
-                new[] { new FM.LiveSwitch.ChannelClaim(channelId) },
-                "--replaceThisWithYourOwnSharedSecret--"
-            );
-
-
-            client.Register(token).Then((FM.LiveSwitch.Channel[] channels) =>
+            if (!FM.IceLink.Android.Utility.IsSDKVersionSupported(BuildVersionCodes.Lollipop))
             {
-                Console.WriteLine("connected to channel: " + channels[0].Id);
-            }).Fail((Exception ex) =>
+                //screenShareCheckBox.Enabled = false;
+            }
+
+            try
             {
-                Console.WriteLine("registration failed");
-            });
+                //사용가능한 키인지 확인
+                try
+                {
+                    string key;
+                    /*using (StreamReader sr = new StreamReader(Assets.Open("icelink.key")))
+                    {*/
+                        key = "fmeyJpZCI6IjUzNGZkN2Y0LTQzYWItNDMxZS04N2YxLWFjZGYwMDQ5YjI1ZCIsImFpZCI6IjAxNzg2ZGI3LTQ4ZTItNDk3Ny1iNjhiLWFjZGYwMDQ4YWQ2NSIsInBjIjoiSWNlTGluayIsIml0Ijp0cnVlLCJ2ZiI6NjM3NTAyNTYwOTkyOTcwMDAwLCJ2dCI6NjM3NTI4NDgwOTkyOTcwMDAwfQ==.nrlO8ND7K6PqvyqSaZKLLEcgib1u7isl5Y+Lv0NzNsVSZR2SBmnv226HKCEbBQHDOLXrvVtO8aLQC6PRPT7rONDSv6Q2yDv3wYBsd1A09myKoL0rKLAWPIaTDiE1FPPOCI8hjMGfBdBR2QfoBhpVpJH+oQTFgIHnX2NFe7pesWI=";
+                    //}
+
+                    FM.IceLink.License.SetKey(key);
+                }
+                catch (Exception)
+                {
+                    Alert("Invalid icelink key.");
+                }
+
+                //APP class 인스턴스 받아오기
+                app = App.GetInstance(this);
+
+                //접속 id로 사용한 6자리 코드 랜덤으로 생성
+                // Create a random 6 digit number for the new session ID.
+                sessionText.Text = new FM.IceLink.Randomizer().Next(100000, 999999).ToString();
+                sessionText.SetFilters(new IInputFilter[] { new InputFilterLengthFilter(6) });
+
+                //이름 랜덤으로 생성해서 텍스트뷰에 추가
+                /*nameText.Text = Names[new FM.IceLink.Randomizer().Next(Names.Length)];
+                nameText.SetFilters(new IInputFilter[] { new InputFilterLengthFilter(20) });*/
+
+                //접속 버튼 클릭 시
+                userNext.Click += (sender, e) =>
+                {
+                    SwitchToVideoChat(sessionText.Text, userChat.Text);
+                };
+
+                //audioSend checkbox
+                audioSendCheckBox.CheckedChange += (compoundButton, b) =>
+                {
+                    app.EnableAudioSend = b.IsChecked;
+                };
+
+                //audioReceive checkbox
+                audioReceiveCheckBox.CheckedChange += (compoundButton, b) =>
+                {
+                    app.EnableAudioReceive = b.IsChecked;
+                };
+
+                //videoReceive checkbox
+                videoReceiveCheckBox.CheckedChange += (compoundButton, b) =>
+                {
+                    app.EnableVideoReceive = b.IsChecked;
+                };
+
+                //videoSend checkbox
+                videoSendCheckBox.CheckedChange += (compoundButton, b) =>
+                {
+                    app.EnableVideoSend = b.IsChecked;
+                };
+
+                //screenShare checkbox
+                screenShareCheckBox.CheckedChange += (compoundButton, b) =>
+                {
+                    app.EnableScreenShare = b.IsChecked;
+                };
+
+
+
+                if (FM.IceLink.OpenH264.Utility.IsSupported())
+                {
+                    // Don't allow join until H.264 is downloaded (in background)
+                    Toast.MakeText(this, "Downloading OpenH264 Library...", ToastLength.Short).Show();
+                    new Thread(new ThreadStart(() =>
+                    {
+                        app.DownloadH264();
+                        RunOnUiThread(() =>
+                        {
+                            userNext.Enabled = true;
+                            Toast.MakeText(this, "Download Complete", ToastLength.Short).Show();
+                        });
+                    })).Start();
+                }
+                else
+                {
+                    userNext.Enabled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                FM.IceLink.Log.Error("SessionSelector", ex);
+            }
 
             Toast.MakeText(this, token, ToastLength.Long).Show();
 
             //TcpClient tcpClient
 
-            userNext.Click += (sender, args) =>
+            /*userNext.Click += (sender, args) =>
             {
                 if (userChat.ToString().Equals(""))
                     return;
@@ -114,11 +204,11 @@ namespace FirebaseTest11
                 var intent = new Intent(this, typeof(ChatActivity));
 
                 app.ChatName = userChat.Text;
-                intent.PutExtra("chatName", userChat.Text);
+                *//*intent.PutExtra("chatName", userChat.Text);
                 //intent.PutExtra("userName", userEdit.Text);
-                intent.PutExtra("token", token);
+                intent.PutExtra("token", token);*//*
                 StartActivity(intent);
-            };
+            };*/
 
             showChatList();
 
@@ -230,6 +320,80 @@ namespace FirebaseTest11
         public void OnChildRemoved(DataSnapshot snapshot)
         {
             
+        }
+
+        //뒤로가기로 액티비티로 돌아왔을 때
+        protected override void OnActivityResult(int requestCode, [GeneratedEnum] Result resultCode, Intent data)
+        {
+            if (requestCode == 42 && FM.IceLink.Android.Utility.IsSDKVersionSupported(BuildVersionCodes.Lollipop))
+            {
+                if (data == null)
+                {
+                    Alert("Must allow screen sharing before the chat can start.");
+                }
+                else
+                {
+                    MediaProjectionManager manager = GetSystemService(MediaProjectionService).JavaCast<MediaProjectionManager>();
+                    app.MediaProjection = manager.GetMediaProjection((int)resultCode, data);
+                    StartActivity(new Intent(ApplicationContext, typeof(ChatActivity)));
+                }
+            }
+        }
+
+        private void SwitchToVideoChat(String sessionId, String name)
+        {
+            //세션 id와 이름을 입력해야만 넘어가짐
+            if (sessionId.Length == 6)
+            {
+                if (name.Length > 0)
+                {
+                    app.SessionId = sessionId;
+                    app.Name = name;
+                    app.EnableScreenShare = screenShareCheckBox.Checked;
+
+                    if (FM.IceLink.Android.Utility.IsSDKVersionSupported(BuildVersionCodes.Lollipop))
+                    {
+                        MediaProjectionManager manager = GetSystemService(MediaProjectionService).JavaCast<MediaProjectionManager>();
+                        Intent screenCaptureIntent = manager.CreateScreenCaptureIntent();
+
+                        this.StartActivityForResult(screenCaptureIntent, 42);
+                    }
+                    else
+                    {
+                        // Show the video chat.var intent = new Intent(this, typeof(ChatActivity));
+
+                        app.ChatName = userChat.Text;
+                        /*intent.PutExtra("chatName", userChat.Text);
+                        //intent.PutExtra("userName", userEdit.Text);
+                        intent.PutExtra("token", token);*/
+                        //StartActivity(intent);
+                        StartActivity(new Intent(ApplicationContext, typeof(ChatActivity)));
+                    }
+                }
+                else
+                {
+                    Alert("Must have a name.");
+                }
+            }
+            else
+            {
+                Alert("Session ID must be 6 digits long.");
+            }
+        }
+
+        public void Alert(String format, params object[] args)
+        {
+            string text = string.Format(format, args);
+            Activity self = this;
+            self.RunOnUiThread(() =>
+            {
+                if (!IsFinishing)
+                {
+                    Android.App.AlertDialog.Builder alert = new Android.App.AlertDialog.Builder(self);
+                    alert.SetMessage(text);
+                    alert.SetPositiveButton("OK", (sender, arg) => { alert.Show(); });
+                }
+            });
         }
 
         /* private void sendNotificationUser(string token)

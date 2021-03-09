@@ -20,6 +20,7 @@ namespace FirebaseTest11
         protected string ServerUrl;
         protected string UserName;
         protected string UserId;
+        protected string chatname;
         protected string SessionChannel;
         protected string MetadataChannel;
         protected string UserIdKey = "userId";
@@ -35,7 +36,7 @@ namespace FirebaseTest11
             ServerUrl = serverUrl;
             SessionId = sessionId;
             UserName = name;
-            chatName = chatName;
+            chatname = chatName;
             CreateConnection = createConnection;
             UserId = Guid.NewGuid().ToString();
             OnReceivedText = onReceivedText;
@@ -255,6 +256,16 @@ namespace FirebaseTest11
             Client.Publish(new PublishArgs(MetadataChannel, JsonConvert.SerializeObject(m)));
         }
 
+        public Data GetData()
+        {
+            Data data = new Data()
+            {
+                chatName = chatname
+            };
+
+            return data;
+        }
+
         protected abstract void DoJoinAsync(Promise<Object> promise);
         public abstract void Reconnect(PeerClient remoteClient, Connection connection);
         public abstract void RenegotiateSessionChannel(Connection connection);
@@ -264,5 +275,10 @@ namespace FirebaseTest11
     {
         public string userName { get; set; }
         public string textMsg { get; set; }
+    }
+
+    public class Data
+    {
+        public string chatName { get; set; }
     }
 }

@@ -515,5 +515,20 @@ namespace FirebaseTest11
             //void OnReceivedText(String name, String message);
             
         }
+
+       /* public Data GetData()
+        {
+            Data data = new Data()
+            {
+                chatName = chatname
+            };
+
+            return data;
+        }
+
+        public class Data
+        {
+            public string chatName { get; set; }
+        }*/
     }
 }

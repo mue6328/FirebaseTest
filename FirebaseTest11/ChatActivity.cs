@@ -14,120 +14,248 @@ using Refit;
 using System;
 using Java.Lang;
 using Java.Util;
+using Fragment = Android.Support.V4.App.Fragment;
 using Java.Net;
 using Java.IO;
 using Android.Util;
 using Java.Interop;
 using System.IO;
+using Android.Support.V4.View;
+using Android.Support.Design.Widget;
+using Android;
+using Android.Support.V4.Content;
+using FM.IceLink;
+using Android.Content.PM;
 
 namespace FirebaseTest11
 {
     [Activity(Label = "ChatActivity", Theme = "@style/AppTheme")]
-    class ChatActivity : AppCompatActivity, IChildEventListener
+    class ChatActivity : AppCompatActivity, VideoChatFragment.IOnVideoReadyListener, TextChatFragment.IOnTextReadyListener, ViewPager.IOnPageChangeListener
     {
-        private string chatName;
-        //private string userName;
-        private string mobile_token = "cLOOaZYGTBWSm5RG-zXRDe:APA91bGVMSzARoOnMKir6LTSz26XHTw9g4DwI81vhacpwuN4eq-_NENGXGw1TEGdEwv0TV2H3NSfI8J93otT-VlWkzLIPf1kFJzO4Gv8L7aERyryyCvO-nqyESde0rA_ztA1mRQFOx2-";
-        private string pc_token = "cp1FK9KkQhWa6UtnSf9p9l:APA91bGJZMJgg8b9DImjnAIurY_x6eCNucvs3EwkyWge9npB1Ry9N02h9uIa-WsudSwhOajaW9IzqxFjT8Kc8yt-zYICGmE_ofZYfXErOB4nwBmdtaUtEkxwI9ELZ-d9H2f6pt882eug";
+        private bool localMediaStarted = false;
+        private bool conferenceStarted = false;
+        private bool VideoReady = false;
+        private bool TextReady = false;
+        private App app;
 
-        private ListView chatView;
-        private EditText chatEdit;
-        private Button chatSend;
+        private ViewPager viewPager;
+        private TabLayout tabLayout;
 
-        private int randomUserName;
-        
 
-        private FirebaseDatabase database;
-        private DatabaseReference reference;
-
-        private notificationApi notiApi;
-
-        protected override void OnCreate(Bundle? savedInstanceState)
+        public void onTextReady()
         {
-            base.OnCreate(savedInstanceState);
-            SetContentView(Resource.Layout.activity_chat);
+            TextReady = true;
 
-            notiApi = RestService.For<notificationApi>(Utils.FCM_URL);
-
-            FirebaseApp.InitializeApp(this);
-
-            database = FirebaseDatabase.Instance;
-            reference = database.Reference;
-
-            chatView = FindViewById<ListView>(Resource.Id.chat_view);
-            chatEdit = FindViewById<EditText>(Resource.Id.chat_edit);
-            chatSend = FindViewById<Button>(Resource.Id.chat_send);
-
-            System.Random random = new System.Random();
-            randomUserName = random.Next(1, 10000);
-
-            var intent = Intent;
-            if (intent == null)
-                Toast.MakeText(this, "null", ToastLength.Long).Show();
-            chatName = intent.GetStringExtra("chatName");
-            //userName = intent.GetStringExtra("userName");
-
-           
-
-            Toast.MakeText(this, chatName + " " +  " ", ToastLength.Long).Show();
-            openChat(chatName);
-
-            chatSend.Click += (sender, args) =>
+            if (VideoReady && TextReady)
             {
-                if (chatEdit.Text.Equals(""))
-                    return;
-
-                var chat = new ChatDTO(chatEdit.Text, "user" + randomUserName);
-
-                /*TCPclient tcpThread = new TCPclient(chatEdit.Text);
-                Thread thread = new Thread(tcpThread);
-                thread.Start();*/
-
-                reference.Child("chat").Child(chatName).Push().SetValue(ChatDTO.MsgModelToMap(chat));
-                sendNotification();
-                chatEdit.Text = "";
-            };
-            
+                Start();
+            }
         }
 
+        public void onVideoReady()
+        {
+            VideoReady = true;
+
+            if (VideoReady && TextReady)
+            {
+                Start();
+            }
+        }
+
+        public override void OnBackPressed()
+        {
+            Stop();
+        }
+
+        protected override void OnCreate(Bundle savedInstanceState)
+        {
+            
+            base.OnCreate(savedInstanceState);
+            SetContentView(Resource.Layout.ChatActivity);
+
+            app = App.GetInstance(this);
+
+            Window.AddFlags(WindowManagerFlags.KeepScreenOn);
+
+            //저장된 값이 유효하면 저장되어있는 값 key로 가져오기
+            if (savedInstanceState != null)
+            {
+                localMediaStarted = savedInstanceState.GetBoolean("localMediaStarted", false);
+                conferenceStarted = savedInstanceState.GetBoolean("conferenceStarted", false);
+            }
+
+            //영상화면과 채팅화면 
+            viewPager = (ViewPager)FindViewById(Resource.Id.pager);
+            PagerAdapter adapter = new PagerAdapter(SupportFragmentManager, this);
+            viewPager.Adapter = adapter;
+
+            viewPager.AddOnPageChangeListener(this);
+
+            tabLayout = (TabLayout)FindViewById(Resource.Id.tab_layout);
+            tabLayout.SetupWithViewPager(viewPager);
+
+            // Iterate over all tabs and set the custom view
+            for (int i = 0; i < tabLayout.TabCount; i++)
+            {
+                TabLayout.Tab tab = tabLayout.GetTabAt(i);
+                tab.SetCustomView(adapter.GetTabView(i));
+            }
+        }
+
+        private Action0 startFn;
+
+        private void Start()
+        {
+            if (!localMediaStarted)
+            {
+                IList<Fragment> fragments = SupportFragmentManager.Fragments;
+                VideoChatFragment videoChatFragment = (VideoChatFragment)(fragments[0] is VideoChatFragment ? fragments[0] : fragments[1]);
+                TextChatFragment textChatFragment = (TextChatFragment)(fragments[0] is TextChatFragment ? fragments[0] : fragments[1]);
+
+                startFn = () =>
+                {
+                    app.StartLocalMedia(videoChatFragment).Then(new FM.IceLink.Function1<LocalMedia, Future<object>>((lm) =>
+                    {
+                        return app.JoinAsync(videoChatFragment, textChatFragment).Then((p) => conferenceStarted = true);
+                    }), (ex) =>
+                    {
+                        FM.IceLink.Log.Error("Could not start local media.", ex);
+                        Alert(ex.Message);
+                    }).Fail((e) =>
+                    {
+                        FM.IceLink.Log.Error("Could not join conference.", e);
+                        Alert(e.Message);
+                    });
+                };
+                if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.M)
+                {
+                    List<System.String> requiredPermissions = new List<string>();
+
+                    if (ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.RecordAudio) != Permission.Granted)
+                    {
+                        requiredPermissions.Add(Manifest.Permission.RecordAudio);
+                    }
+                    if (ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.Camera) != Permission.Granted)
+                    {
+                        requiredPermissions.Add(Manifest.Permission.Camera);
+                    }
+                    if (ContextCompat.CheckSelfPermission(this, Android.Manifest.Permission.ReadPhoneState) != Permission.Granted)
+                    {
+                        requiredPermissions.Add(Manifest.Permission.ReadPhoneState);
+                    }
+
+                    if (requiredPermissions.Count == 0)
+                    {
+                        startFn.Invoke();
+                    }
+                    else
+                    {
+                        if (ShouldShowRequestPermissionRationale(Manifest.Permission.Camera) || ShouldShowRequestPermissionRationale(Manifest.Permission.RecordAudio))
+                        {
+                            Toast.MakeText(this, "Access to camera, microphone, and phone call state is required", ToastLength.Short).Show();
+                        }
+                        RequestPermissions(requiredPermissions.ToArray(), 1);
+                    }
+                }
+                else
+                {
+                    startFn.Invoke();
+                }
+                localMediaStarted = true;
+            }
+        }
+
+        public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Permission[] grantResults)
+        {
+            if (requestCode == 1)
+            {
+                System.Boolean permissionsGranted = true;
+                foreach (int grantResult in grantResults)
+                {
+                    if (grantResult != (int)Permission.Granted)
+                    {
+                        permissionsGranted = false;
+                    }
+                }
+
+                if (permissionsGranted)
+                {
+                    startFn.Invoke();
+                }
+                else
+                {
+                    Toast.MakeText(this, "Cannot connect without access to camera, microphone, and storage", ToastLength.Short).Show();
+                    for (int i = 0; i < grantResults.Length; i++)
+                    {
+                        if (grantResults[i] != Permission.Granted)
+                        {
+                            FM.IceLink.Log.Debug(System.String.Format("Permission to {0} not granted.", permissions[i]));
+                        }
+                    }
+                    Stop();
+                }
+            }
+            else
+            {
+                Toast.MakeText(this, "Unknown permission requested", ToastLength.Short).Show();
+                FM.IceLink.Log.Debug(System.String.Format("Unknown permission requested."));
+                base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
+            }
+        }
+
+        private void Stop()
+        {
+            if (localMediaStarted && conferenceStarted)
+            {
+                app.LeaveAsync().Fail((e) =>
+                {
+                    FM.IceLink.Log.Error("Could not leave conference.", e);
+                    Alert(e.Message);
+                });
+
+                app.StopLocalMedia().Then(new Action1<LocalMedia>((lm) =>
+                {
+                    Finish();
+                }))
+                .Fail((e) =>
+                {
+                    FM.IceLink.Log.Error("Could not stop local media.", e);
+                    Alert(e.Message);
+                });
+            }
+            else
+            {
+                Finish();
+            }
+            localMediaStarted = false;
+        }
+
+        // 오류 알림 띄우기
+        public void Alert(System.String format, params object[] args)
+        {
+            System.String text = string.Format(format, args);
+            Activity activity = this;
+            this.RunOnUiThread(() =>
+            {
+                Android.App.AlertDialog.Builder alert = new Android.App.AlertDialog.Builder(activity);
+                alert.SetMessage(text);
+                alert.SetPositiveButton("OK", new EventHandler<DialogClickEventArgs>((sender, a) => { }));
+                alert.Show();
+            });
+        }
         /*public static ChatDTO Cast(Java.Lang.Object obj) where ChatDTO : class
         {
             var propertyInfo = obj.GetType().GetProperty("Instance");
             return propertyInfo == null ? null : propertyInfo.GetValue(obj, null) as ChatDTO;
         }*/
 
-        private void sendNotification()
-        {
-            var intent = Intent;
-            //token = intent.GetStringExtra("token");
-            
-            if (intent.GetStringExtra("token").Equals(pc_token))
-                notiApi.sendNotification(new Model(mobile_token, new NotificationModel("ddddd", "ddd"), new ChatDTO(chatEdit.Text, "user" + randomUserName)));
-            else
-                notiApi.sendNotification(new Model(pc_token, new NotificationModel("ddddd", "ddd"), new ChatDTO(chatEdit.Text, "user" + randomUserName)));
-            //Toast.MakeText(this, notiApi.sendNotification(new Model(token, new ChatDTO(chatEdit.Text, userName))).Result.ToString(), ToastLength.Long).Show();
-        }
+
 
         ArrayAdapter<string> adapter;
-        private void openChat(string chatName)
-        {
-            reference.Child("chat").Child(chatName).AddChildEventListener(this);
-
-            adapter = new ArrayAdapter<string>(Application.Context,
-                Android.Resource.Layout.SimpleListItem1,
-                Android.Resource.Id.Text1);
-
-            chatView.Adapter = adapter;
-            chatView.TranscriptMode = TranscriptMode.AlwaysScroll;
-
-            //Toast.MakeText(this, chatName, ToastLength.Long).Show();
-
-            
-        }
 
         public void OnCancelled(DatabaseError error)
         {
-            throw new System.NotImplementedException();
+            
         }
 
         public void OnChildAdded(DataSnapshot snapshot, string previousChildName)
@@ -142,7 +270,7 @@ namespace FirebaseTest11
 
         public void OnChildMoved(DataSnapshot snapshot, string previousChildName)
         {
-            throw new System.NotImplementedException();
+            
         }
 
         public void OnChildRemoved(DataSnapshot snapshot)
@@ -169,6 +297,26 @@ namespace FirebaseTest11
             var chatUser = dataSnapshot.Child("username")?.GetValue(true)?.ToString();
 
             adapter.Remove(chatUser + " : " + chatMsg);
+        }
+
+        public void onNewMessage()
+        {
+            
+        }
+
+        public void OnPageScrollStateChanged(int state)
+        {
+            
+        }
+
+        public void OnPageScrolled(int position, float positionOffset, int positionOffsetPixels)
+        {
+            
+        }
+
+        public void OnPageSelected(int position)
+        {
+            
         }
 
         /*private class TCPclient : Java.Lang.Object, IRunnable

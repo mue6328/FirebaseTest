@@ -54,16 +54,16 @@ namespace FirebaseTest11
             System.Random random = new System.Random();
             randomUserName = random.Next(1, 10000);
 
-            Intent intent = Intent;
+            /*Intent intent = Intent;
             if (intent == null)
                 Toast.MakeText(Context, "null", ToastLength.Long).Show();
-            chatName = intent.GetStringExtra("chatName");
+            chatName = intent.GetStringExtra("chatName");*/
             //userName = intent.GetStringExtra("userName");
 
+            
 
-
-            Toast.MakeText(Context, chatName + " " + " ", ToastLength.Long).Show();
-            openChat(chatName);
+            Toast.MakeText(Context, chatName + " " + " " + app.ChatName, ToastLength.Long).Show();
+            //openChat(chatName);
 
             
 
@@ -82,11 +82,6 @@ namespace FirebaseTest11
             chatEdit = view.FindViewById<EditText>(Resource.Id.chat_edit);
             chatSend = view.FindViewById<Button>(Resource.Id.chat_send);
 
-            chatSend.Click += (sender, args) =>
-            {
-                
-            };
-
             chatSend.Click += SendButton_Click;
 
             listener.onTextReady();
@@ -103,9 +98,22 @@ namespace FirebaseTest11
             Thread thread = new Thread(tcpThread);
             thread.Start();*/
 
-            reference.Child("chat").Child(chatName).Push().SetValue(ChatDTO.MsgModelToMap(chat));
+        //    reference.Child("chat").Child(chatName).Push().SetValue(ChatDTO.MsgModelToMap(chat));
             sendNotification();
             chatEdit.Text = "";
+        }
+
+        public override void OnAttach(Activity activity)
+        {
+            base.OnAttach(activity);
+            if (activity is IOnTextReadyListener)
+            {
+                listener = (IOnTextReadyListener)activity;
+            }
+            else
+            {
+                throw new Exception(activity.ToString() + " must implement TextChatFragment.OnTextReadyListener");
+            }
         }
 
         public interface IOnTextReadyListener
@@ -121,13 +129,13 @@ namespace FirebaseTest11
 
         private void sendNotification()
         {
-            var intent = Intent;
+            /*var intent = Intent;
             //token = intent.GetStringExtra("token");
 
             if (intent.GetStringExtra("token").Equals(pc_token))
                 notiApi.sendNotification(new Model(mobile_token, new NotificationModel("ddddd", "ddd"), new ChatDTO(chatEdit.Text, "user" + randomUserName)));
             else
-                notiApi.sendNotification(new Model(pc_token, new NotificationModel("ddddd", "ddd"), new ChatDTO(chatEdit.Text, "user" + randomUserName)));
+                notiApi.sendNotification(new Model(pc_token, new NotificationModel("ddddd", "ddd"), new ChatDTO(chatEdit.Text, "user" + randomUserName)));*/
             //Toast.MakeText(this, notiApi.sendNotification(new Model(token, new ChatDTO(chatEdit.Text, userName))).Result.ToString(), ToastLength.Long).Show();
         }
 

@@ -6,6 +6,7 @@
                 android:layout_height="match_parent">
 
     <LinearLayout
+            android:id="@+id/header"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical">
@@ -18,6 +19,15 @@
                 android:gravity="center"
                 tools:ignore="MissingDimension"
         >
+            <EditText
+                    android:id="@+id/sessionText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="20dp"
+                    android:layout_marginLeft="16dp"
+                    android:layout_marginRight="16dp"
+                    android:layout_marginBottom="8dp"
+                    android:hint="세션 ID"/>
 
             <EditText
                     android:id="@+id/user_chat"
@@ -48,6 +58,117 @@
 
 
         </LinearLayout>
+
+        <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@+id/header"
+        android:layout_above="@+id/footer">
+       
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:text="Screen Share"
+                android:id="@+id/textScreenShare"
+                android:textColor="#1AA8E0"
+                android:layout_centerVertical="true" />
+            <Switch
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/screenShareSwitch"
+                android:enabled="true"
+                android:checked="false"
+                android:clickable="true"
+                android:layout_toRightOf="@id/textScreenShare"
+                android:layout_centerVertical="true"
+                android:layout_marginLeft="5dp" />
+        </RelativeLayout>
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:text="Receive"
+                android:id="@+id/textReceive"
+                android:textColor="#1AA8E0"
+                android:layout_alignParentRight="true" />
+            <TextView
+                android:layout_width="60dp"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:text="Send"
+                android:id="@+id/textSend"
+                android:textColor="#1AA8E0"
+                android:layout_toLeftOf="@id/textReceive"
+                android:layout_marginRight="20dp"
+                android:layout_centerHorizontal="true"
+                android:gravity="center" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:text="Audio"
+                android:id="@+id/textAudio"
+                android:textColor="#1AA8E0"
+                android:layout_below="@id/textReceive" />
+            <Switch
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/audioReceiveSwitch"
+                android:enabled="true"
+                android:checked="true"
+                android:clickable="true"
+                android:layout_alignLeft="@id/textReceive"
+                android:layout_alignTop="@id/textAudio"
+                android:layout_alignRight="@id/textReceive" />
+            <Switch
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/audioSendSwitch"
+                android:enabled="true"
+                android:checked="true"
+                android:clickable="true"
+                android:layout_alignLeft="@id/textSend"
+                android:layout_alignTop="@id/textAudio"
+                android:layout_alignRight="@id/textSend" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:text="Video"
+                android:id="@+id/textVideo"
+                android:textColor="#1AA8E0"
+                android:layout_below="@id/textAudio"
+                android:layout_marginTop="10dp" />
+            <Switch
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/videoSendSwitch"
+                android:enabled="true"
+                android:checked="true"
+                android:clickable="true"
+                android:layout_alignLeft="@id/textSend"
+                android:layout_alignTop="@id/textVideo"
+                android:layout_alignRight="@id/textSend" />
+            <Switch
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/videoReceiveSwitch"
+                android:enabled="true"
+                android:checked="true"
+                android:clickable="true"
+                android:layout_alignLeft="@id/textReceive"
+                android:layout_alignTop="@id/textVideo"
+                android:layout_alignRight="@id/textReceive" />
+        </RelativeLayout>
+    </LinearLayout>
 
         <LinearLayout
                 android:layout_weight="2"

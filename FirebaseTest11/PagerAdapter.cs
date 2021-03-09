@@ -57,8 +57,8 @@ namespace FirebaseTest11
             TextView header = (TextView)v.FindViewById(Resource.Id.header);
             header.Text = GetPageTitle(position);
 
-            TextView badge = (TextView)v.FindViewById(Resource.Id.badge);
-            badge.Visibility = ViewStates.Invisible;
+            //TextView badge = (TextView)v.FindViewById(Resource.Id.badge);
+            //badge.Visibility = ViewStates.Invisible;
 
             return v;
         }
